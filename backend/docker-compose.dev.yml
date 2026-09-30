@@ -1,0 +1,26 @@
+services:
+  mongo:
+    image: mongo:7.0
+    container_name: mongo
+    restart: unless-stopped
+    ports: ["27017:27017"]
+    volumes:
+      - mongo-data:/data/db
+
+  api:
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    container_name: api
+    environment:
+      - JWT_SECRET=my secret string
+      - MONGO_URL=mongodb://mongo:27017/deloitte
+      - PORT=3000
+    ports: ["3000:3000"]
+    volumes:
+      - ./:/usr/src/app # bind-mount source
+      - /usr/src/app/node_modules
+    depends_on: [mongo]
+
+volumes:
+  mongo-data:

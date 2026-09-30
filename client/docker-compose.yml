@@ -1,0 +1,16 @@
+services:
+  react-dev:
+    build:
+      context: . # the directory containing your Dockerfile
+      dockerfile: Dockerfile # or "Dockerfile.dev" if you’ve renamed it
+    working_dir: /app # must match WORKDIR in your Dockerfile
+    command: npm run dev -- --host 0.0.0.0 --port 5173
+    volumes:
+      - ./:/app # mount your app into /app
+      - /app/node_modules # keep node_modules inside the container
+    ports:
+      - "5173:5173" # Vite’s default dev port
+    environment:
+      - CHOKIDAR_USEPOLLING=1 # reliable file-watching under Docker
+    tty: true # for colored logs
+
