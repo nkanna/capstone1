@@ -1,514 +1,174 @@
-# Week 1 Capstone: React Application
+# Spoonful
 
-### What You'll Build
+Spoonful is a recipe application with public browsing, creator accounts, recipe management, a streamed cooking assistant, and an AI recipe generator. Built for the Deloitte Unit 1 capstone by Niranjanaa Kannan.
 
-You will consume an API rendering it using react. The Figma design and user stories are provided. Your job is to connect the frontend to the backend, and deliver a working product.
+- Repository: https://github.com/nkanna/capstone1
+- Deployed frontend: http://nkanna-spoonful-capstone-20261001.s3-website-us-east-1.amazonaws.com
+- Demo backend: https://platinum-factual-roundish.ngrok-free.dev
 
-In addition to the original scope, your application must include an AI-powered feature that calls Google Gemini and displays a streamed response to the user, and you'll build and deploy the finished React app to Amazon S3 — the same deployment pattern you'd use on a real client engagement.
+The frontend is hosted on Amazon S3. The Express API and MongoDB run locally in Docker and are exposed through ngrok during the demo. The backend requires the local machine, Docker, and ngrok to remain running. If the public API URL changes, update the production frontend environment, rebuild, and upload again.
 
-### Setup
+## Features
 
-- clone this repo and `cd unit1-capstone`
-- remove the git repo `rm -rf .git`
-- initialize a new repo `git init`
-- add and commit `setup starter code`
-- add a github remote to the local repo
+| Feature | Behavior |
+| --- | --- |
+| Public discovery | Guests browse recipes, open details, and search by title, tag, or ingredient. |
+| Creator authentication | Email/password signup and login return a JWT. The dashboard and recipe writes require authentication. |
+| Recipe creation and editing | Forms collect title, description, image URL, ingredient quantities, ordered instructions, and tags. Validation runs before saving. |
+| Recipe ownership | Creators manage their own recipes; the backend rejects unauthorized updates and deletions. |
+| Recipe deletion | A confirmation is required before the delete request. Successful deletion updates the displayed list. |
+| Recipe form UX | Image URLs produce a preview. Cancel on a changed draft offers save, discard, and keep-editing choices. |
+| AI Assistant | A public route streams an answer progressively, supports cancellation, handles failures, and keeps the last three completed exchanges in client-side session state. Refreshing clears that AI history. |
+| Recipe Generator | A second AI use case turns ingredients and preferences into a structured recipe draft. A creator reviews it, supplies an image URL, and explicitly saves it through the recipe API. Guests can generate a draft and sign in to save. |
 
-## Step 1: Setup Backend
+## Technology
 
-- [backend commands reference](./backend/README.md)
+React 19, TypeScript, Vite, React Router, Axios, Open Sans, CSS/Flexbox, Express, MongoDB/Mongoose, JWT, bcrypt, Google Gemini, Docker Compose, Vitest/Testing Library, Playwright, Amazon S3, and ngrok.
 
-## Step 2: Consult Design Docs
+The browser communicates with the application's API. The Gemini key is read only by the backend; it is not a frontend environment variable or part of the frontend's requests. JWT authorization is enforced by the backend, including recipe ownership checks.
 
-- [design docs](./DESIGN.md)
+## Routes
 
-## Step 3: Build the React Frontend
+| Frontend route | Access |
+| --- | --- |
+| `/` | Public landing page |
+| `/login`, `/signup` | Creator authentication |
+| `/recipes` | Public browse and search |
+| `/recipes/:id` | Public recipe details |
+| `/ai-assistant` | Public streamed cooking assistant |
+| `/recipe-generator` | Public generation; authentication required to save a draft |
+| `/dashboard` | Authenticated creator dashboard |
+| `/recipes/new`, `/recipes/:id/edit` | Authenticated recipe forms; edits require ownership |
 
-- **Connect to Your Backend:**\
-  Your React app must call and use all the API endpoints you've built.
+| API endpoint | Access / purpose |
+| --- | --- |
+| `POST /api/users/signup` | Register a creator |
+| `POST /api/users/login` | Authenticate a creator |
+| `GET /api/recipes` | Public recipe list; supports title, tag, and ingredient query parameters |
+| `GET /api/recipes/:id` | Public recipe details |
+| `POST /api/recipes` | Create a recipe as the authenticated creator |
+| `PUT /api/recipes/:id` | Update an owned recipe |
+| `DELETE /api/recipes/:id` | Delete an owned recipe |
+| `POST /api/ai/stream` | Stream a cooking response for `{ "prompt": "..." }` |
+| `POST /api/ai/recipe` | Generate a recipe from ingredients, diet, minutes, and servings |
 
-- **Set Up Routing:**\
-  Implement routing for navigation between all major app sections/components.
+## Local setup
 
-- **Responsive Design:**\
-  Use CSS and Flexbox so your app looks good on mobile, tablet, and desktop.
+Use Node.js 24, npm, and Docker Desktop. Clone the repository and enter its root. Keep existing private environment files when updating an existing checkout.
 
-- **Match the Figma Design:**\
-  Strive for a pixel-perfect implementation of the provided UI.
+For a new checkout, create `backend/.env` with a private Gemini key and a strong JWT secret:
 
-- **Component Testing:**\
-  Write tests for at least four different UI components.
-
-- [react client command reference](./client/README.md)
-
-## Step 4: Add an AI-Powered Feature
-
-Build a dedicated route in your app that calls Google Gemini and displays a streamed response to the user. Choose one of the following (or propose your own of similar complexity):
-
-- **A content generator** — user provides a topic or prompt, the app calls Gemini and displays generated text
-- **A text analyzer** — user pastes text, the app calls Gemini to summarize it, extract key points, or classify its tone
-- **A Q&A assistant** — user asks a question, the app calls Gemini and displays the answer
-
-**Your AI feature must call Gemini through your backend — not directly from the browser.** Your API key lives only in the backend's `.env`, and your React app only ever talks to your own API.
-
-### Getting a Gemini API Key
-
-Gemini's free tier requires no billing setup — just a Google account.
-
-1. Go to [aistudio.google.com](https://aistudio.google.com)
-2. Sign in with any Google account
-3. Click **Get API key** (left sidebar, or under your profile menu)
-4. Click **Create API key**
-5. Choose **Create API key in new project** (or select an existing project if you have one)
-6. Copy the generated key
-
-> The free tier currently allows a generous number of requests per minute/day — more than enough for this capstone. No credit card is required at any point.
-
-> **Don't assume a key is wrong just because of what it looks like.** Google has more than one key format in circulation — the classic shape starts with `AIza...`, but a newer format starting with `AQ.` also works. If your key looks unfamiliar, test it directly instead of guessing:
-> ```bash
-> curl -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent" \
->   -H "Content-Type: application/json" -H "x-goog-api-key: YOUR_KEY" \
->   -d '{"contents":[{"role":"user","parts":[{"text":"Say hello in one sentence"}]}]}'
-> ```
-> A `200` with real generated text means it's good, regardless of the prefix.
-
-### Backend: Add the AI Route
-
-Create `backend/routes/ai.js`:
-
-```js
-const express = require('express');
-const axios = require('axios');
-const router = express.Router();
-
-// Check https://ai.google.dev/gemini-api/docs/models for the current
-// recommended model if this one has been retired.
-const GEMINI_MODEL = 'gemini-3.6-flash';
-
-router.post('/stream', async (req, res) => {
-  const { prompt } = req.body;
-
-  if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
-    return res.status(400).json({ error: 'prompt is required' });
-  }
-
-  if (!process.env.GEMINI_API_KEY) {
-    console.error('GEMINI_API_KEY is not set');
-    return res.status(500).json({ error: 'AI service is not configured' });
-  }
-
-  try {
-    const upstream = await axios({
-      method: 'post',
-      url: `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:streamGenerateContent?alt=sse`,
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': process.env.GEMINI_API_KEY,
-      },
-      data: {
-        contents: [
-          {
-            role: 'user',
-            parts: [{ text: prompt.trim() }],
-          },
-        ],
-        generationConfig: {
-          maxOutputTokens: 1024,
-        },
-      },
-      responseType: 'stream',
-    });
-
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-
-    upstream.data.pipe(res);
-
-    upstream.data.on('error', (err) => {
-      console.error('Stream error:', err);
-      if (!res.headersSent) {
-        res.status(500).json({ error: 'Streaming error' });
-      }
-    });
-  } catch (err) {
-    // responseType: 'stream' means error responses ALSO come back as a
-    // stream, not parsed JSON — read it manually to see the real error.
-    let errorBody = '';
-
-    if (err.response?.data && typeof err.response.data.on === 'function') {
-      try {
-        errorBody = await new Promise((resolve) => {
-          let chunks = '';
-          err.response.data.on('data', (chunk) => (chunks += chunk));
-          err.response.data.on('end', () => resolve(chunks));
-          err.response.data.on('error', () => resolve('(could not read error stream)'));
-        });
-      } catch {
-        errorBody = '(failed to parse error stream)';
-      }
-    } else {
-      errorBody = err.message;
-    }
-
-    console.error('AI stream error:', err.response?.status, errorBody);
-
-    if (!res.headersSent) {
-      const status = err.response?.status || 500;
-      res.status(status).json({ error: 'Failed to reach AI service', details: errorBody });
-    }
-  }
-});
-
-module.exports = router;
+```dotenv
+GEMINI_API_KEY=replace_with_your_private_key
+JWT_SECRET=replace_with_your_generated_secret
 ```
 
-Register it in `backend/server.js` alongside your existing routes:
+Generate a JWT secret with `openssl rand -hex 32`, then paste its value privately into the single `JWT_SECRET` entry. The Compose file reads this value using `${JWT_SECRET:?Set JWT_SECRET in backend/.env}`. Optional Gemini model configuration belongs in the backend environment and must use a model supported by the service implementation.
 
-```js
-app.use('/api/ai', require('./routes/ai'));
+MongoDB's Docker address and API port are supplied by the backend Compose configuration. Environment files must be ignored by Git.
+
+Start the backend and database:
+
+```sh
+cd backend
+docker compose -f docker-compose.dev.yml up --build -d
+curl http://localhost:3000/api/recipes
 ```
 
-Add your Gemini key to `backend/.env`:
+Start the frontend through Docker Compose in another terminal:
 
-```
-GEMINI_API_KEY=your_gemini_api_key_here
-```
-
-> **Never commit your API key.** Confirm `.env` is in `.gitignore` before your first commit.
-
-Rebuild the backend so it picks up the new route and dependency — see [backend commands reference](./backend/README.md) for the docker-compose command.
-
-> **✅ Check:** Test the route directly before touching the frontend:
-> ```bash
-> curl -X POST http://localhost:3000/api/ai/stream \
->   -H "Content-Type: application/json" \
->   -d '{"prompt": "hello, tell me a fun fact"}'
-> ```
-> Confirm you see streamed `data:` chunks in the terminal, not an error.
-
-### Frontend: Call Your Backend
-
-```jsx
-// src/pages/AIAssistant/AIAssistant.jsx
-import { useState } from 'react';
-
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
-
-function AIAssistant() {
-  const [prompt, setPrompt] = useState('');
-  const [response, setResponse] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [history, setHistory] = useState([]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!prompt.trim() || isLoading) return;
-
-    setIsLoading(true);
-    setResponse('');
-    setError('');
-
-    let fullText = '';
-    let buffer = '';
-
-    try {
-      const res = await fetch(`${BACKEND_URL}/api/ai/stream`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt }),
-      });
-
-      if (!res.ok) {
-        const errorBody = await res.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(errorBody.error || `Server error: ${res.status}`);
-      }
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        // Gemini's SSE stream can split one JSON object across multiple
-        // chunks, so buffer and only process complete lines.
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          if (!line.startsWith('data:')) continue;
-          const data = line.replace(/^data:\s*/, '').trim();
-          if (!data) continue;
-
-          try {
-            const parsed = JSON.parse(data);
-            const text = parsed?.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (text) {
-              fullText += text;
-              setResponse(fullText);
-            }
-          } catch {
-            // incomplete chunk, continue
-          }
-        }
-      }
-
-      setHistory((prev) => [{ prompt, answer: fullText }, ...prev].slice(0, 3));
-      setPrompt('');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <div>
-      <h1>AI Assistant</h1>
-      <form onSubmit={handleSubmit}>
-        <textarea
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          placeholder="Ask something..."
-          disabled={isLoading}
-        />
-        <button type="submit" disabled={isLoading || !prompt.trim()}>
-          {isLoading ? 'Generating...' : 'Submit'}
-        </button>
-      </form>
-
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-      {isLoading && !response && <p>Gemini is thinking...</p>}
-      {response && <pre style={{ whiteSpace: 'pre-wrap' }}>{response}</pre>}
-
-      <h3>Recent History</h3>
-      {history.map((h, i) => (
-        <div key={i}>
-          <strong>Q:</strong> {h.prompt} <br />
-          <strong>A:</strong> {h.answer}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-export default AIAssistant;
-```
-
-Add `VITE_BACKEND_URL` to `client/.env`:
-
-```
-VITE_BACKEND_URL=http://localhost:3000
-```
-
-### Requirements
-
-- Loading state while waiting for Gemini's response
-- Error handling if the API call fails
-- Input validation — don't call the backend with an empty prompt
-- The AI feature must be its own route, reachable from your navigation
-- Maintain a history of at least the last 3 prompts/responses in the session (in-memory state is fine — no persistence required)
-
-> **✅ Check:** Open your browser's dev tools, Network tab, and submit a prompt. Confirm the request to `/api/ai/stream` contains no API key anywhere — your key should never appear in anything the browser sends.
-
-## Step 5: Deploy to S3
-
-Your backend, database, and local dev workflow don't change — you keep running those via `docker-compose -f docker-compose.dev.yml up --build` for development and grading. What's new: your **built React app** gets deployed as a static site to Amazon S3, and it's configured to call your backend at whatever address it's reachable from during your demo. This is the same shape of pipeline you'll run on a real client engagement: build once, ship the static artifact, point it at an API.
-
-### Create the S3 Bucket
-
-1. Sign in to the [AWS Console](https://console.aws.amazon.com) → S3 → **Create bucket**.
-2. Pick a globally-unique bucket name (e.g. `your-name-spoonful-capstone`).
-3. Under **Block Public Access settings**, uncheck **Block all public access**. You'll need public reads for a static website — S3 will warn you about this; that's expected for this use case, not a mistake.
-4. Create the bucket.
-
-### Enable Static Website Hosting
-
-1. Open your bucket → **Properties** tab → **Static website hosting** → **Edit** → **Enable**.
-2. **Index document:** `index.html`
-3. **Error document:** `index.html` — **this one matters more than it looks.** React Router does client-side routing: a request for `/recipes/abc123` doesn't exist as a real file in the bucket, so S3 returns its "error document" instead of a 404 page. Pointing the error document at `index.html` too means React Router's own code loads and handles the route client-side. Skip this and every deep link (a shared recipe URL, a refresh on `/dashboard`) breaks with an S3 403/404 page instead of your app.
-4. Save, and note the **Bucket website endpoint** URL shown on this page (something like `http://your-bucket.s3-website-us-east-1.amazonaws.com`) — that's your live app's URL once you deploy.
-
-### Add a Bucket Policy for Public Reads
-
-Bucket → **Permissions** → **Bucket policy** → paste (swap in your bucket name):
-
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Sid": "PublicReadGetObject",
-      "Effect": "Allow",
-      "Principal": "*",
-      "Action": "s3:GetObject",
-      "Resource": "arn:aws:s3:::YOUR_BUCKET_NAME/*"
-    }
-  ]
-}
-```
-
-### Configure the AWS CLI Locally
-
-If you haven't already:
-
-```bash
-aws configure
-# AWS Access Key ID, Secret Access Key, default region (must match your bucket's region), output format (json)
-```
-
-### Point the Production Build at Your Backend
-
-Create `client/.env.production`:
-
-```
-VITE_BACKEND_URL=http://your-backend-address:3000
-```
-
-Use whatever address your backend is actually reachable at for the demo. `npm run build` bakes this value into the static files at build time (that's how Vite env vars work — there's no "runtime config" for a static site), so re-run the build any time this URL changes.
-
-### If Your Sandbox Blocks Backend Hosting
-
-If you're working in a locked-down AWS sandbox (Whizlabs and similar training environments commonly do this), you may find EC2 unavailable, and — if you try to work around it — API Gateway, App Runner, and even Lambda Function URLs blocked too. Specifically for Lambda: you may be able to *create* a function, an execution role, and a Function URL without any errors, but every attempt to actually *invoke* that URL returns a `403 Forbidden` straight from the Lambda service, before your code ever runs — this happens for anonymous requests and for properly-signed authenticated requests alike, and `UpdateFunctionUrlConfig` is typically blocked too. That's not a bug in your setup or a permissions request you're missing — it's a deliberate guardrail blocking any publicly-reachable compute endpoint, the same category of restriction as the EC2 block, and it isn't something you can configure around.
-
-If you hit this, the practical path is to **run the backend locally and expose it with a Cloudflare quick tunnel** — no AWS involvement, no account signup required:
-
-```bash
-curl -sSL -o cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
-chmod +x cloudflared
-./cloudflared tunnel --url http://localhost:3000
-```
-
-This prints a public `https://*.trycloudflare.com` URL — use that as `VITE_BACKEND_URL` above. **This is a live-demo mechanism, not a deployment**: the URL only works while the tunnel process and your backend both keep running on your machine. Good enough to satisfy "the deployed app reaches a real backend" for grading/demo purposes; not something you'd ship to production.
-
-> **If your machine sleeps or you come back later, check the tunnel even if it "looks" fine.** Confirmed directly: after a sleep/wake cycle, both the backend and `cloudflared` processes can still be *running* — `pgrep` finds them, nothing crashed — and a plain request like `GET /api/recipes` can even succeed through the tunnel, while the AI streaming route specifically times out. The long-lived streaming connection silently wedges across the sleep even when quick request/response calls still work. If your AI Assistant stops responding but recipes still load, this is almost certainly why. Fix: kill and restart `cloudflared` (a protocol change doesn't help — this isn't a QUIC-vs-HTTP/2 issue). Restarting mints a new URL, so you'll need to rebuild the frontend and re-sync to S3 afterward, same as any other time the URL changes.
-
-> **Some Gemini responses take a lot longer than others, and free tunnels have a timeout.** Response time for the same kind of prompt can vary from ~1-2 seconds to 60+ seconds — this is inherent to the model's "thinking" behavior, not something in your code. Cloudflare's free quick tunnel enforces a hard ~100-second edge timeout, so an occasional slow response can get cut off there, surfacing as an `HTTP 524` — not a bug to chase, just a known limit of the free-tunnel demo path. Setting `generationConfig.thinkingConfig` to try to force faster responses does not reliably work (tested directly) — don't spend time on it. What you can do instead: make sure your loading state stays visible for the whole wait rather than assuming anything past a few seconds means it broke.
-
-### Build and Deploy
-
-```bash
+```sh
 cd client
-npm run build            # produces client/dist
-aws s3 sync dist/ s3://YOUR_BUCKET_NAME --delete
+docker compose -f docker-compose.yml up --build -d
 ```
 
-`--delete` removes files in the bucket that no longer exist in `dist/` — without it, stale assets from previous builds accumulate in the bucket forever.
+Open http://localhost:5173. The API is available at http://localhost:3000. For this browser-based local setup, the frontend API URL uses `localhost`, rather than the MongoDB container's hostname.
 
-Add this as an npm script so you don't have to remember the bucket name every time:
+For frontend development outside Docker, stop the frontend container first if it occupies port 5173, then run:
 
-```json
-"scripts": {
-  "deploy": "npm run build && aws s3 sync dist/ s3://YOUR_BUCKET_NAME --delete"
-}
+```sh
+cd client
+npm ci
+npm run dev
 ```
 
-> **✅ Check:** Open the bucket website endpoint URL from the hosting settings above in a browser. Confirm the landing page loads, then navigate to a route like `/recipes` directly (or refresh on it) to confirm the error-document fallback is working — a broken deep link here almost always means the error document isn't set to `index.html`. One quirk to expect and not panic over: plain S3 static-website hosting serves the error document's *content* correctly on those deep links, but the raw HTTP status on that request is `404`, not `200` (S3 doesn't remap it — only fronting the bucket with CloudFront does). Browsers still render the page fine; if you check this with `curl -I` instead of a browser, don't mistake the status code for a broken deploy.
+Run commands from the appropriate directory relative to the repository root. Backend logs are available with `docker compose -f docker-compose.dev.yml logs --tail=50 api` from `backend/`; frontend logs use `docker compose -f docker-compose.yml logs --tail=50 react-dev` from `client/`.
 
-### Stretch: Automate It
+## Tests
 
-The must-have is running the build + sync commands yourself and confirming the live URL works. For the CI/CD stretch goal, wrap this in a GitHub Actions workflow so it runs automatically on every push to `main` — something like:
+From `client/`:
 
-```yaml
-# .github/workflows/deploy.yml
-name: Deploy to S3
-on:
-  push:
-    branches: [main]
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 20 }
-      - run: npm ci
-        working-directory: client
-      - run: npm run build
-        working-directory: client
-        env:
-          VITE_BACKEND_URL: ${{ secrets.BACKEND_URL }}
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-      - run: aws s3 sync client/dist/ s3://${{ secrets.S3_BUCKET_NAME }} --delete
+```sh
+npm ci
+npm test
+npm run build
+npm run test:e2e:types
+npx playwright install chromium
+npm run test:e2e
 ```
 
-Configure `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `S3_BUCKET_NAME`, and `BACKEND_URL` as repo secrets (Settings → Secrets and variables → Actions) — never commit real credentials to the workflow file itself.
+Keep the real local backend running for Playwright. The configuration starts a separate frontend on port 5174 and a controlled AI fixture on port 4188. These ports must be available.
 
-### Tearing Down
+The browser suite performs real authentication and recipe CRUD against the local API/database. Only AI requests are redirected to controlled responses so streaming boundaries, failures, cancellation, and history can be tested reproducibly without depending on Gemini timing or quota. Live Gemini behavior is checked separately on the deployed application.
 
-When you're done — grading is over, or you're just cleaning up between attempts — remove the AWS resources you created:
+Latest recorded validation on October 1, 2026:
 
-```bash
-./scripts/teardown.sh YOUR_BUCKET_NAME
-# or, if you also created the Lambda troubleshooting resources above:
-./scripts/teardown.sh YOUR_BUCKET_NAME --lambda
+- **27 Playwright cases passed in 30.6 seconds on the developer's Mac**, covering desktop, tablet, and mobile. The preceding E2E TypeScript check also passed.
+- **54 frontend tests passed across 15 files** in the reference validation checkout; its strict TypeScript check and production build passed.
+- The developer verified progressive live AI Assistant output through the public backend earlier in the demo setup.
+- After restarting the computer, the developer verified live recipe generation on S3, added an image, saved the draft, opened its details, and found it through guest browsing/search.
+- The deployed Spoonful icon was visually confirmed by the developer.
+- The developer subsequently confirmed that the frontend running through Docker could receive a live AI Assistant response progressively, completing the frontend Docker smoke check.
+
+The frontend suite covers more than four React components, including authentication, navigation, protected routes, recipe forms, dashboard deletion, recipe browsing/details, and AI interfaces. Playwright also checks cross-owner permissions, guest route access, missing recipes, and lack of horizontal overflow at its configured viewports.
+
+From `backend/`, run `npm ci && npm test` for the Node controller/service tests. View the latest Playwright report with `npx playwright show-report` from `client/`.
+
+## S3 build and deployment
+
+Configure the S3 bucket for static website hosting with both index and error documents set to `index.html`, and public read access to the built frontend objects.
+
+Start a public tunnel while the local API is running:
+
+```sh
+ngrok http 3000
 ```
 
-It only touches the specific bucket you name and (with `--lambda`) the exact function/role names this README's instructions create — it will not go looking for or deleting anything else in your account. It prints what it's about to delete and asks for confirmation before doing anything; pass `--yes` to skip that if you're scripting it.
+Set `client/.env.production` to the current HTTPS forwarding URL, without an `/api` suffix:
 
-## Must-Have Checklist
-
-> 🥉 Bronze - complete all must-haves
-
-- Backend supports full CRUD, all endpoints in use
-
-- React app calls all endpoints
-
-- Routing set up for major components
-
-- Responsive CSS/Flexbox design
-
-- Pixel-perfect Figma implementation
-
-- Four or more tested React components
-
-- AI-powered feature calling Gemini through your backend, with loading, error, and empty-input handling
-
-- AI feature maintains a 3-item session history
-
-- API key stored in backend `.env`, never committed
-
-- Full application runs successfully via docker-compose for both `client` and `backend`
-
-- React app built and deployed to S3 as a static site, reachable at its public bucket-website URL, with working deep-link routing (error document set to `index.html`)
-
-## Stretch Goals:
-
-> 🥈 Silver - complete 1 stretch goal <br> 🥇 Gold - complete 2
-
-- Add a second AI-powered feature using a different Gemini use case than your first
-
-- Add Playwright end-to-end tests
-
-- Automate the S3 deployment with Github Actions (or other CI/CD) so it runs on every push to `main`, instead of running `npm run deploy` by hand
-
-## Weekly AWS Cleanup — Run This at the End of Every Week
-
-This program uses AWS across multiple weeks, not just this capstone — later labs may have you provision Lambda, RDS, Bedrock (Knowledge Bases, Agents, Provisioned Throughput), OpenSearch, and similar billable resources. **Run this at the end of every week**, not just after this capstone, so nothing keeps billing between sessions:
-
-```bash
-./scripts/aws-teardown-full.sh
+```dotenv
+VITE_BACKEND_URL=https://platinum-factual-roundish.ngrok-free.dev
 ```
 
-It scans `us-east-1` — the only region this Whizlabs sandbox grants access to — for every service the curriculum uses (S3, Lambda, RDS, Bedrock, OpenSearch, DynamoDB, CloudFront, plus the classic EC2 silent-cost trio of running instances, unassociated Elastic IPs, and NAT Gateways), shows you exactly what it found, and asks for confirmation before deleting anything. Takes about 10 seconds. Pass `--yes` to skip the confirmation if you're running it unattended.
+The frontend adds the ngrok browser-warning bypass header when calling a recognized ngrok hostname. The URL is public configuration; actual Gemini and AWS credentials stay outside frontend source.
 
-**It deliberately does not touch IAM** (users, roles, policies) — those aren't billable by themselves, and getting a delete wrong there can lock you out of your own sandbox. If a lab has you create IAM roles you want cleaned up too, do that by hand.
+From `client/`, build and upload using the configured AWS CLI profile:
 
-This is broader than (and separate from) `scripts/teardown.sh`, which only undoes this specific capstone's S3 + Lambda-troubleshooting resources by exact name. Use that one right after finishing this capstone if you want something narrower; use `aws-teardown-full.sh` as your standing end-of-week habit for the rest of the program.
+```sh
+npm run build && \
+aws s3 sync dist/ s3://nkanna-spoonful-capstone-20261001 \
+  --delete --profile spoonful --region us-east-1
+```
 
-## Tips for Success
+The API URL is baked into the build. Changing only an environment file does not update files already deployed to S3. Rebuild and upload after changing the public backend URL.
 
-- **Work in small steps:** Build and test each part before moving on.
+Plain S3 website hosting uses HTTP. Its `index.html` error-document fallback can render React routes while returning a raw 404 status for a deep link. Verify deep-link behavior in a browser by refreshing a recipe-detail URL, rather than judging only that status code.
 
-- **Test your AI feature early:** Confirm the Gemini API call works in isolation (via `curl`) before wiring it into your full component — it's easier to debug a single endpoint than a full component tree.
+## Gold stretch goals and remaining checks
 
-- **Stick to the blueprint:** The Figma file and user stories define your target for the core app; the AI feature is yours to design within the requirements above.
+The two implemented stretch goals are:
 
-- **Ask questions:** Don't spend too long blocked. Help is here if you need it!
+1. **A second AI use case:** Recipe Generator produces an editable structured draft, separate from the streamed cooking assistant.
+2. **Playwright E2E tests:** 27 cases cover nine scenarios across desktop, tablet, and mobile.
+
+Gold also requires all core requirements. The remaining verification status is:
+
+- [x] Confirm the frontend and backend run together through their Docker Compose files. Backend Docker operation and the frontend's live AI streaming smoke check are verified by the developer.
+- [ ] Complete and verify the final desktop visual match. Remaining differences include dashboard card arrangement, the stacked browse layout, recipe-detail ordering, and exact wordmark lettering.
+- [ ] Capture final screenshots and demo evidence, verify a refreshed recipe-detail deep link, and commit the final documentation and changes.
+
+The provided UX exports also include profile editing, account deletion, and a Forgot Password link. The supplied API and core user-story acceptance criteria do not provide those account endpoints. Those flows are not implemented and must be reconciled with the instructor if they are part of the assessed screen scope. There are no placeholder controls claiming those actions work.
+
+The logo icon uses the supplied SVG. The surrounding lettering uses Open Sans; exact wordmark reproduction remains part of the visual pass. The original Figma file was unavailable to the connected design tools because editor access was not granted. Automated layout checks establish viewport fit, not pixel-perfect fidelity.
+
+This project has no automated GitHub Actions deployment; deployment automation is a third optional stretch goal rather than one of the two selected above.
