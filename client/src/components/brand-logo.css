@@ -1,0 +1,41 @@
+.brand-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  line-height: 1;
+  white-space: nowrap;
+  vertical-align: middle;
+  color: var(--neutral-600);
+}
+.brand-icon-viewport {
+  position: relative;
+  display: inline-block;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  overflow: hidden;
+}
+.brand-icon-crop {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 28px;
+  height: 28px;
+  overflow: hidden;
+  transform-origin: top left;
+}
+.brand-icon-sheet {
+  position: absolute;
+  left: -80px;
+  top: -80px;
+  display: block;
+  /* The SVG's original 188 × 188 dimensions stay unchanged. White from the
+     exported sheet blends into the cream page without modifying the artwork. */
+  mix-blend-mode: multiply;
+}
+.landing-brand .brand-icon-viewport { width: 48px; height: 48px; }
+.landing-brand .brand-icon-crop { transform: scale(1.7142857143); }
+@media (max-width: 600px) {
+  .landing-brand .brand-icon-viewport { width: 36px; height: 36px; }
+  .landing-brand .brand-icon-crop { transform: scale(1.2857142857); }
+}

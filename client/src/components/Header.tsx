@@ -1,12 +1,13 @@
 import { Link, NavLink, useNavigate } from 'react-router';
 import { useAuth } from '../auth/useAuth';
+import { BrandLogo } from './BrandLogo';
 
 export function Header() {
   const { session, signOut } = useAuth();
   const navigate = useNavigate();
   return (
     <header className="site-header">
-      <Link to="/" className="brand" aria-label="Spoonful home">Spoonful</Link>
+      <Link to="/" className="brand" aria-label="Spoonful home"><BrandLogo /></Link>
       <nav aria-label="Main navigation">
         <NavLink to="/recipes">Browse Recipes</NavLink>
         <NavLink to="/ai-assistant">AI Assistant</NavLink>

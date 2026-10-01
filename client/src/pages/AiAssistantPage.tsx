@@ -3,6 +3,7 @@ import type { FormEvent } from 'react';
 import { Header } from '../components/Header';
 import { useAi } from '../ai/useAi';
 import { aiErrorMessage, streamAssistant } from '../ai/stream';
+import { createUiId } from '../lib/uiId';
 type Active = { prompt: string; response: string; phase: 'waiting' | 'streaming' | 'failed' | 'cancelled' };
 export function AiAssistantPage() {
   const { pairs, addPair, clearPairs } = useAi();
@@ -26,7 +27,7 @@ export function AiAssistantPage() {
       const response = await streamAssistant(question, (text) => {
         if (!work.signal.aborted) setActive((value) => value ? { ...value, response: value.response + text, phase: 'streaming' } : value);
       }, work.signal);
-      if (!work.signal.aborted) { addPair({ id: crypto.randomUUID(), prompt: question, response }); setActive(null); setPrompt(''); setNotice('Response complete.'); }
+      if (!work.signal.aborted) { addPair({ id: createUiId(), prompt: question, response }); setActive(null); setPrompt(''); setNotice('Response complete.'); }
     } catch (cause) {
       if (!work.signal.aborted) {
         const message = await aiErrorMessage(cause);

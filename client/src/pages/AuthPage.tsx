@@ -3,6 +3,7 @@ import type { FormEvent } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router';
 import { useAuth } from '../auth/useAuth';
 import { api, errorMessage } from '../lib/api';
+import { BrandLogo } from '../components/BrandLogo';
 
 export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
   const isSignup = mode === 'signup';
@@ -50,7 +51,7 @@ export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
 
   return (
     <main className="auth-page">
-      <Link to="/" className="brand auth-brand">Spoonful</Link>
+      <Link to="/" className="brand auth-brand" aria-label="Spoonful home"><BrandLogo /></Link>
       <section className="auth-panel" aria-labelledby="auth-heading">
         <h1 id="auth-heading">{isSignup ? 'Create an Account' : 'Welcome Back!'}</h1>
         {!isSignup && <p className="intro">Log in to your account to continue</p>}

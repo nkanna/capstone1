@@ -1,29 +1,48 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
+import { UnsavedRecipeDialog } from './UnsavedRecipeDialog';
+import { createUiId } from '../lib/uiId';
 import { recipeError } from '../recipes/errors';
 import { safeImageUrl } from '../recipes/types';
 import type { Recipe, RecipeInput } from '../recipes/types';
 type IngredientRow = { key: string; name: string; quantity: string };
 type StepRow = { key: string; description: string };
-const blankIngredient = (): IngredientRow => ({ key: crypto.randomUUID(), name: '', quantity: '' });
-const blankStep = (): StepRow => ({ key: crypto.randomUUID(), description: '' });
+const blankIngredient = (): IngredientRow => ({ key: createUiId(), name: '', quantity: '' });
+const blankStep = (): StepRow => ({ key: createUiId(), description: '' });
 export function RecipeForm({ initial, onSave, submitLabel }: { initial?: Recipe | RecipeInput; onSave: (input: RecipeInput) => Promise<void>; submitLabel?: string }) {
+  const navigate = useNavigate();
+  const form = useRef<HTMLFormElement>(null);
+  const [confirmLeaving, setConfirmLeaving] = useState(false);
+  const [failedImage, setFailedImage] = useState('');
   const [title, setTitle] = useState(initial?.title || '');
   const [description, setDescription] = useState(initial?.description || '');
   const [image, setImage] = useState(initial?.image || '');
   const [tags, setTags] = useState((initial?.tags || []).join(', '));
   const [ingredients, setIngredients] = useState<IngredientRow[]>(() => initial?.ingredients?.length
-    ? initial.ingredients.map((item) => ({ ...item, key: crypto.randomUUID() })) : [blankIngredient()]);
+    ? initial.ingredients.map((item) => ({ ...item, key: createUiId() })) : [blankIngredient()]);
   const [steps, setSteps] = useState<StepRow[]>(() => initial?.instructions?.length
-    ? [...initial.instructions].sort((a, b) => a.step - b.step).map((item) => ({ key: crypto.randomUUID(), description: item.description })) : [blankStep()]);
+    ? [...initial.instructions].sort((a, b) => a.step - b.step).map((item) => ({ key: createUiId(), description: item.description })) : [blankStep()]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const snapshot = JSON.stringify({ title, description, image, tags,
+    ingredients: ingredients.map(({ name, quantity }) => ({ name, quantity })),
+    steps: steps.map(({ description }) => description) });
+  const [baseline] = useState(snapshot);
+  const dirty = snapshot !== baseline;
+  const preview = safeImageUrl(image.trim());
+  useEffect(() => {
+    if (!dirty || busy) return;
+    function warn(event: BeforeUnloadEvent) { event.preventDefault(); event.returnValue = ''; }
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty, busy]);
   function fieldError(key: string) { return errors[key] ? <p className="field-error" id={`${key}-error`}>{errors[key]}</p> : null; }
   function accessibility(key: string) { return { 'aria-invalid': Boolean(errors[key]), 'aria-describedby': errors[key] ? `${key}-error` : undefined }; }
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (busy) return;
     const next: Record<string, string> = {};
     if (!title.trim()) next.title = 'Please add a recipe title.';
     if (!safeImageUrl(image.trim())) next.image = 'Please add a valid http or https image URL.';
@@ -42,13 +61,19 @@ export function RecipeForm({ initial, onSave, submitLabel }: { initial?: Recipe 
         tags: [...new Set(tags.split(',').map((tag) => tag.trim()).filter(Boolean))] });
     } catch (cause) { setError(recipeError(cause, 'We couldn’t save your recipe. Please try again.')); setBusy(false); }
   }
-  return <form onSubmit={(event) => void submit(event)} noValidate aria-busy={busy}>
+  return <><form ref={form} onSubmit={(event) => void submit(event)} noValidate aria-busy={busy}>
     <p className="field-hint form-hint">Title, image URL, ingredients, and instructions are required.</p>
     {error && <p className="form-error" role="alert">{error}</p>}
     <fieldset className="form-fields" disabled={busy}>
       <div className="field"><label htmlFor="title">Recipe Title</label><input id="title" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="e.g. Chickpea Stew" required {...accessibility('title')} />{fieldError('title')}</div>
       <div className="field"><label htmlFor="description">Description (optional)</label><textarea id="description" value={description} onChange={(event) => setDescription(event.target.value)} rows={3} placeholder="Describe your recipe" /></div>
-      <div className="field"><label htmlFor="image">Image URL</label><input id="image" type="url" value={image} onChange={(event) => setImage(event.target.value)} placeholder="https://example.com/recipe.jpg" required {...accessibility('image')} />{fieldError('image')}<p className="field-hint">Use a direct link to an image.</p></div>
+      <div className="field"><label htmlFor="image">Image URL</label><input id="image" type="url" value={image} onChange={(event) => setImage(event.target.value)} placeholder="https://example.com/recipe.jpg" required {...accessibility('image')} />{fieldError('image')}<p className="field-hint">Use a direct link to an image.</p>
+        {preview && <div className="recipe-photo-preview">
+          {failedImage === preview ? <p className="field-hint" role="status">This image couldn’t be loaded. Check the link or try another image URL.</p>
+            : <img className="detail-image" src={preview} alt="Recipe photo preview" onError={() => setFailedImage(preview)} />}
+          <button className="text-button" type="button" onClick={() => { setImage(''); setFailedImage(''); }}>Clear Image</button>
+        </div>}
+      </div>
       <section className="form-section" aria-labelledby="ingredients-title"><h2 id="ingredients-title">Ingredients</h2>
         {ingredients.map((item, index) => <div className="ingredient-row" key={item.key}>
           <div className="field"><label htmlFor={`name-${item.key}`}>Ingredient {index + 1}</label><input id={`name-${item.key}`} value={item.name} onChange={(event) => setIngredients((rows) => rows.map((row) => row.key === item.key ? { ...row, name: event.target.value } : row))} placeholder="e.g. Chickpeas" required {...accessibility(`name-${item.key}`)} />{fieldError(`name-${item.key}`)}</div>
@@ -66,7 +91,14 @@ export function RecipeForm({ initial, onSave, submitLabel }: { initial?: Recipe 
       </section>
       <div className="field"><label htmlFor="tags">Tags (optional)</label><input id="tags" value={tags} onChange={(event) => setTags(event.target.value)} placeholder="e.g. vegan, easy, gluten-free" aria-describedby="tags-hint" /><p id="tags-hint" className="field-hint">Separate tags with commas.</p></div>
       <div className="button-stack form-actions"><button className="button button-primary" type="submit">{busy ? 'Saving…' : submitLabel || (initial ? 'Save Changes' : 'Create Recipe')}</button>
-        <Link className="button button-secondary" to="/dashboard" onClick={(event) => { if (busy) event.preventDefault(); }} aria-disabled={busy}>Cancel</Link></div>
+        <Link className="button button-secondary" to="/dashboard" onClick={(event) => {
+          if (busy || dirty) event.preventDefault();
+          if (!busy && dirty) setConfirmLeaving(true);
+        }} aria-disabled={busy}>Cancel</Link></div>
     </fieldset>
-  </form>;
+  </form>{confirmLeaving && <UnsavedRecipeDialog
+    onCancel={() => setConfirmLeaving(false)}
+    onDiscard={() => { setConfirmLeaving(false); navigate('/dashboard'); }}
+    onSave={() => { setConfirmLeaving(false); form.current?.requestSubmit(); }}
+  />}</>;
 }

@@ -1,9 +1,22 @@
 import axios from 'axios';
 import { readSession } from '../auth/session';
 
+const backendURL = (import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000').replace(/\/+$/, '');
+
+function demoTunnelHeaders(url: string): Record<string, string> {
+  try {
+    const hostname = new URL(url).hostname;
+    if (/(^|\.)ngrok(-free)?\.(app|dev|io)$/i.test(hostname)) {
+      return { 'ngrok-skip-browser-warning': '1' };
+    }
+  } catch { /* Relative API URLs do not need a tunnel header. */ }
+  return {};
+}
+
 export const api = axios.create({
-  baseURL: (import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000').replace(/\/+$/, ''),
+  baseURL: backendURL,
   timeout: 15000,
+  headers: demoTunnelHeaders(backendURL),
 });
 
 api.interceptors.request.use((config) => {
