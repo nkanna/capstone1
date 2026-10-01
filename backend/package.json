@@ -1,11 +1,11 @@
 {
   "name": "project-backend",
   "version": "1.0.0",
-  "description": "You are going to create an express API that has JWT Authentication implememented.",
-  "main": "index.js",
+  "description": "Spoonful recipe API with JWT authentication and Gemini AI.",
+  "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --test controllers/*.test.cjs services/*.test.cjs"
   },
   "keywords": [],
   "author": "",
