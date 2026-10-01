@@ -1,9 +1,12 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router';
 import { useAuth } from '../auth/useAuth';
 import { api, errorMessage } from '../lib/api';
 import { BrandLogo } from '../components/BrandLogo';
+import { PasswordRecoveryDialog } from '../components/PasswordRecoveryDialog';
+import { LoadingScreen } from '../components/LoadingScreen';
+import './auth-recovery.css';
 
 export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
   const isSignup = mode === 'signup';
@@ -14,7 +17,10 @@ export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [showRecovery, setShowRecovery] = useState(false);
+  const recoveryTrigger = useRef<HTMLButtonElement>(null);
 
+  if (busy) return <LoadingScreen />;
   if (session) return <Navigate to="/dashboard" replace />;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -52,7 +58,7 @@ export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
   return (
     <main className="auth-page">
       <Link to="/" className="brand auth-brand" aria-label="Spoonful home"><BrandLogo /></Link>
-      <section className="auth-panel" aria-labelledby="auth-heading">
+      <section className={`auth-panel auth-panel-${mode}`} aria-labelledby="auth-heading">
         <h1 id="auth-heading">{isSignup ? 'Create an Account' : 'Welcome Back!'}</h1>
         {!isSignup && <p className="intro">Log in to your account to continue</p>}
         <form onSubmit={handleSubmit} noValidate aria-busy={busy}>
@@ -66,7 +72,7 @@ export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
               aria-describedby={errors.email ? 'email-error' : isSignup ? 'email-hint' : undefined}
             />
             {errors.email ? <p className="field-error" id="email-error">{errors.email}</p>
-              : isSignup && <p className="field-hint" id="email-hint">Use your email address as your username.</p>}
+              : isSignup && <p className="sr-only" id="email-hint">Use your email address as your username.</p>}
           </div>
           <div className="field">
             <label htmlFor="password">Password</label>
@@ -79,6 +85,8 @@ export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
               aria-describedby={errors.password ? 'password-error' : undefined}
             />
             {errors.password && <p className="field-error" id="password-error">{errors.password}</p>}
+            {!isSignup && <button type="button" className="forgot-password-link" ref={recoveryTrigger}
+              disabled={busy} aria-haspopup="dialog" onClick={() => setShowRecovery(true)}>Forgot Password?</button>}
           </div>
           {error && <p className="form-error" role="alert">{error}</p>}
           <div className="button-stack form-actions">
@@ -92,6 +100,7 @@ export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
           <p className="sr-only" role="status">{busy ? 'Please wait.' : ''}</p>
         </form>
       </section>
+      {showRecovery && <PasswordRecoveryDialog onClose={() => setShowRecovery(false)} returnFocus={recoveryTrigger.current} />}
     </main>
   );
 }

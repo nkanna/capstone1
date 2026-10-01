@@ -1,8 +1,10 @@
 .brand-logo {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
-  line-height: 1;
+  gap: 0;
+  line-height: normal;
+  font-size: 18px;
+  font-weight: 700;
   white-space: nowrap;
   vertical-align: middle;
   color: var(--neutral-600);
@@ -10,8 +12,8 @@
 .brand-icon-viewport {
   position: relative;
   display: inline-block;
-  width: 28px;
-  height: 28px;
+  width: 33px;
+  height: 33px;
   flex: 0 0 auto;
   overflow: hidden;
 }
@@ -23,6 +25,7 @@
   height: 28px;
   overflow: hidden;
   transform-origin: top left;
+  transform: scale(1.1785714286);
 }
 .brand-icon-sheet {
   position: absolute;
@@ -39,3 +42,7 @@
   .landing-brand .brand-icon-viewport { width: 36px; height: 36px; }
   .landing-brand .brand-icon-crop { transform: scale(1.2857142857); }
 }
+
+.brand-icon-viewport { mix-blend-mode: multiply; }
+
+.brand-icon-viewport { mix-blend-mode: multiply; }

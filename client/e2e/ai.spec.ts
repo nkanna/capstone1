@@ -7,6 +7,7 @@ test('AI assistant validates, streams progressively, retains three exchanges, an
   let calls = 0;
   page.on('request', event => { if (event.method() === 'POST' && event.url().includes('/api/ai/stream')) calls++; });
   await page.goto('/recipes');
+  await page.getByRole('button', { name: 'Main menu', exact: true }).click();
   await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link', { name: 'AI Assistant', exact: true }).click();
   await page.getByRole('button', { name: 'Ask Spoonful', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('Please enter a question.');
@@ -33,7 +34,9 @@ test('AI assistant validates, streams progressively, retains three exchanges, an
   }
   await expect(history.getByRole('article')).toHaveCount(3);
   await expect(history.getByRole('heading', { name: prompt, exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Main menu', exact: true }).click();
   await page.getByRole('link', { name: 'Browse Recipes', exact: true }).click();
+  await page.getByRole('button', { name: 'Main menu', exact: true }).click();
   await page.getByRole('link', { name: 'AI Assistant', exact: true }).click();
   await expect(history.getByRole('article')).toHaveCount(3);
   await page.reload();
@@ -104,6 +107,7 @@ test('guest generates a draft, signs in, reviews it, and explicitly saves throug
     await page.getByLabel('Password', { exact: true }).fill(user.password);
     await page.getByRole('button', { name: 'Login', exact: true }).click();
     await expect(page).toHaveURL(/\/dashboard$/);
+    await page.getByRole('button', { name: 'Main menu', exact: true }).click();
     await page.getByRole('link', { name: 'Recipe Generator', exact: true }).click();
     await expect(page.getByLabel('Recipe Title', { exact: true })).toHaveValue('Chickpea Test Stew');
     await page.getByRole('button', { name: 'Save Recipe', exact: true }).click();
@@ -137,7 +141,16 @@ test('public navigation and form controls fit the viewport', async ({ page }) =>
     await expect(page.getByRole('heading', { name: heading, exact: true })).toBeVisible();
     await noHorizontalOverflow(page);
     const nav = page.getByRole('navigation', { name: 'Main navigation' });
+    const menu = nav.getByRole('button', { name: 'Main menu', exact: true });
+    await expect(nav.getByRole('link', { name: 'AI Assistant', exact: true })).toHaveCount(0);
+    await menu.focus();
+    await menu.press('Enter');
     await expect(nav.getByRole('link', { name: 'AI Assistant', exact: true })).toBeVisible();
     await expect(nav.getByRole('link', { name: 'Recipe Generator', exact: true })).toBeVisible();
+    await expect(nav.getByRole('link', { name: 'Login', exact: true })).toBeVisible();
+    await noHorizontalOverflow(page);
+    await page.keyboard.press('Escape');
+    await expect(menu).toBeFocused();
+    await expect(menu).toHaveAttribute('aria-expanded', 'false');
   }
 });

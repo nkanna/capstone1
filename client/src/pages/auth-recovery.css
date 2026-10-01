@@ -1,0 +1,2 @@
+.auth-panel-login .forgot-password-link { display: block; width: auto; min-height: 0; margin: 4px 0 0 auto; padding: 0; border: 0; background: transparent; color: var(--green-300); font-family: inherit; font-size: 12px; line-height: 16px; font-weight: 700; text-align: right; text-decoration: underline; }
+.auth-page .auth-panel-login .form-actions { margin-top: 40px; }

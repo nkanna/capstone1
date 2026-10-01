@@ -13,7 +13,8 @@ The frontend is hosted on Amazon S3. The Express API and MongoDB run locally in 
 | Feature | Behavior |
 | --- | --- |
 | Public discovery | Guests browse recipes, open details, and search by title, tag, or ingredient. |
-| Creator authentication | Email/password signup and login return a JWT. The dashboard and recipe writes require authentication. |
+| Creator authentication | Email/password signup and login return a JWT. The dashboard and recipe writes require authentication. A full-screen brand loading state is shown while authentication or dashboard data is pending. |
+| Your Profile | Creators view their email, save email/password changes after entering the current password, log out, or confirm deletion of their account and owned recipes. Deleted accounts cannot use old JWTs. |
 | Recipe creation and editing | Forms collect title, description, image URL, ingredient quantities, ordered instructions, and tags. Validation runs before saving. |
 | Recipe ownership | Creators manage their own recipes; the backend rejects unauthorized updates and deletions. |
 | Recipe deletion | A confirmation is required before the delete request. Successful deletion updates the displayed list. |
@@ -38,12 +39,16 @@ The browser communicates with the application's API. The Gemini key is read only
 | `/ai-assistant` | Public streamed cooking assistant |
 | `/recipe-generator` | Public generation; authentication required to save a draft |
 | `/dashboard` | Authenticated creator dashboard |
+| `/profile` | Authenticated account management |
 | `/recipes/new`, `/recipes/:id/edit` | Authenticated recipe forms; edits require ownership |
 
 | API endpoint | Access / purpose |
 | --- | --- |
 | `POST /api/users/signup` | Register a creator |
 | `POST /api/users/login` | Authenticate a creator |
+| `GET /api/account` | Read the current creator’s account |
+| `PUT /api/account` | Change account credentials after current-password verification |
+| `DELETE /api/account` | Confirm current password, remove owned recipes and delete the current account |
 | `GET /api/recipes` | Public recipe list; supports title, tag, and ingredient query parameters |
 | `GET /api/recipes/:id` | Public recipe details |
 | `POST /api/recipes` | Create a recipe as the authenticated creator |
@@ -113,16 +118,17 @@ The browser suite performs real authentication and recipe CRUD against the local
 
 Latest recorded validation on October 1, 2026:
 
-- **27 Playwright cases passed in 30.6 seconds on the developer's Mac**, covering desktop, tablet, and mobile. The preceding E2E TypeScript check also passed.
-- **54 frontend tests passed across 15 files** in the reference validation checkout; its strict TypeScript check and production build passed.
-- The developer verified progressive live AI Assistant output through the public backend earlier in the demo setup.
-- After restarting the computer, the developer verified live recipe generation on S3, added an image, saved the draft, opened its details, and found it through guest browsing/search.
-- The deployed Spoonful icon was visually confirmed by the developer.
-- The developer subsequently confirmed that the frontend running through Docker could receive a live AI Assistant response progressively, completing the frontend Docker smoke check.
+- The developer reported the complete **33-case Playwright suite** working after the profile/loading/redirect corrections. It covers 11 scenarios across desktop, tablet and mobile.
+- The final dialog wording patch was followed by a pasted Mac transcript showing **73 frontend unit tests across 17 files**, successful E2E TypeScript checks and **12 targeted browser cases passed** (core recipe/auth flows and editor UX). The most recent targeted run completed in 20.6 seconds. This 12-case run is a subset of the 33-case suite, not 12 additional cases.
+- The final production build completed and the Mac transcript shows an S3 sync. That build contains a CSS syntax warning from an accidentally pasted shell command; source cleanup and a clean rebuild remain pending before the final commit.
+- Live Gemini streaming and generation were checked separately from controlled AI fixtures. The developer saw the Assistant response filling gradually and generated, reviewed, supplied an image for and saved a recipe on the deployed app.
+- Deployed desktop screenshots were reviewed for Your Profile, account deletion, public browsing, recipe details, create/edit forms, and the unsaved/deletion dialogs. Recipe-dialog wording was then corrected to match the retrieved Figma text.
+- Frontend and backend Docker operation had previously been confirmed by the developer.
+- The developer confirmed that a deployed recipe-detail page still loads after refreshing its direct URL.
 
 The frontend suite covers more than four React components, including authentication, navigation, protected routes, recipe forms, dashboard deletion, recipe browsing/details, and AI interfaces. Playwright also checks cross-owner permissions, guest route access, missing recipes, and lack of horizontal overflow at its configured viewports.
 
-From `backend/`, run `npm ci && npm test` for the Node controller/service tests. View the latest Playwright report with `npx playwright show-report` from `client/`.
+From `backend/`, run `node --test tests/account.test.cjs` for the account controller/service tests after installing dependencies with `npm ci`. View the latest Playwright report with `npx playwright show-report` from `client/`; its contents reflect the most recent run, which may be a targeted subset.
 
 ## S3 build and deployment
 
@@ -154,21 +160,30 @@ The API URL is baked into the build. Changing only an environment file does not 
 
 Plain S3 website hosting uses HTTP. Its `index.html` error-document fallback can render React routes while returning a raw 404 status for a deep link. Verify deep-link behavior in a browser by refreshing a recipe-detail URL, rather than judging only that status code.
 
-## Gold stretch goals and remaining checks
+## Gold stretch goals and design status
 
 The two implemented stretch goals are:
 
 1. **A second AI use case:** Recipe Generator produces an editable structured draft, separate from the streamed cooking assistant.
-2. **Playwright E2E tests:** 27 cases cover nine scenarios across desktop, tablet, and mobile.
+2. **Playwright E2E tests:** 33 cases cover 11 scenarios across desktop, tablet and mobile. Authentication, recipe CRUD and account management use the real local backend; AI responses are controlled for reproducible automated tests.
 
-Gold also requires all core requirements. The remaining verification status is:
+The desktop implementation uses Open Sans, the supplied Spoonful/profile SVG artwork, cream background, green primary and outlined secondary buttons, yellow tags, centered content columns, stacked public recipe cards and confirmation dialogs. Navigation is available through the profile icon dropdown, including both AI routes.
 
-- [x] Confirm the frontend and backend run together through their Docker Compose files. Backend Docker operation and the frontend's live AI streaming smoke check are verified by the developer.
-- [ ] Complete and verify the final desktop visual match. Remaining differences include dashboard card arrangement, the stacked browse layout, recipe-detail ordering, and exact wordmark lettering.
-- [ ] Capture final screenshots and demo evidence, verify a refreshed recipe-detail deep link, and commit the final documentation and changes.
+Retrieved desktop frames from the accessible Figma copy and user-supplied exports were compared with deployed screenshots. The image remains a URL input as the brief requires. Description, ingredient quantity rows, sequential instructions and account reauthentication controls extend older static mockups to support the current data/API flows. Account deletion explicitly includes the creator’s recipes. Long dynamic titles and tags wrap. These screenshot comparisons establish the checked structure and styling; they do not constitute a same-viewport pixel-difference certification.
 
-The provided UX exports also include profile editing, account deletion, and a Forgot Password link. The supplied API and core user-story acceptance criteria do not provide those account endpoints. Those flows are not implemented and must be reconciled with the instructor if they are part of the assessed screen scope. There are no placeholder controls claiming those actions work.
+Design copy: https://www.figma.com/design/w4yhfzJs6bUT7VO6P7ORhg/Spoonful--Copy-?node-id=96-4773
 
-The logo icon uses the supplied SVG. The surrounding lettering uses Open Sans; exact wordmark reproduction remains part of the visual pass. The original Figma file was unavailable to the connected design tools because editor access was not granted. Automated layout checks establish viewport fit, not pixel-perfect fidelity.
+## Remaining submission checks
 
-This project has no automated GitHub Actions deployment; deployment automation is a third optional stretch goal rather than one of the two selected above.
+- [ ] Remove the accidentally pasted shell command identified by the latest CSS build warning; confirm a clean production build and re-sync to S3.
+- [x] Refresh a deployed recipe-detail URL and confirm that the app and recipe load directly. The developer confirmed this on October 1, 2026.
+- [ ] Capture final demo evidence and commit/push the implementation and documentation.
+
+## Known limits
+
+- Forgot Password opens an informational notice. No email service or reset-token delivery is configured, so email password recovery is unavailable.
+- The backend is available through the demo tunnel while the Mac, Docker and ngrok remain running. An S3 deployment alone does not keep the local backend alive. Network filtering previously caused tunnel connectivity failures; use a working network for the demo.
+- Account deletion removes recipes and then the user in separate database operations on standalone MongoDB. This is not a cross-document transaction; a database failure between operations could partially complete cleanup.
+- No GitHub Actions deployment is configured. CI/CD is an additional optional stretch goal, not one of the two selected.
+
+Gold requires the core criteria as well as the two stretch goals; the evaluator makes the final assessment.

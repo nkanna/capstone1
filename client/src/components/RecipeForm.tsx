@@ -67,13 +67,6 @@ export function RecipeForm({ initial, onSave, submitLabel }: { initial?: Recipe 
     <fieldset className="form-fields" disabled={busy}>
       <div className="field"><label htmlFor="title">Recipe Title</label><input id="title" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="e.g. Chickpea Stew" required {...accessibility('title')} />{fieldError('title')}</div>
       <div className="field"><label htmlFor="description">Description (optional)</label><textarea id="description" value={description} onChange={(event) => setDescription(event.target.value)} rows={3} placeholder="Describe your recipe" /></div>
-      <div className="field"><label htmlFor="image">Image URL</label><input id="image" type="url" value={image} onChange={(event) => setImage(event.target.value)} placeholder="https://example.com/recipe.jpg" required {...accessibility('image')} />{fieldError('image')}<p className="field-hint">Use a direct link to an image.</p>
-        {preview && <div className="recipe-photo-preview">
-          {failedImage === preview ? <p className="field-hint" role="status">This image couldn’t be loaded. Check the link or try another image URL.</p>
-            : <img className="detail-image" src={preview} alt="Recipe photo preview" onError={() => setFailedImage(preview)} />}
-          <button className="text-button" type="button" onClick={() => { setImage(''); setFailedImage(''); }}>Clear Image</button>
-        </div>}
-      </div>
       <section className="form-section" aria-labelledby="ingredients-title"><h2 id="ingredients-title">Ingredients</h2>
         {ingredients.map((item, index) => <div className="ingredient-row" key={item.key}>
           <div className="field"><label htmlFor={`name-${item.key}`}>Ingredient {index + 1}</label><input id={`name-${item.key}`} value={item.name} onChange={(event) => setIngredients((rows) => rows.map((row) => row.key === item.key ? { ...row, name: event.target.value } : row))} placeholder="e.g. Chickpeas" required {...accessibility(`name-${item.key}`)} />{fieldError(`name-${item.key}`)}</div>
@@ -90,6 +83,13 @@ export function RecipeForm({ initial, onSave, submitLabel }: { initial?: Recipe 
         <button className="button button-secondary" type="button" onClick={() => setSteps((rows) => [...rows, blankStep()])}>Add Step</button>
       </section>
       <div className="field"><label htmlFor="tags">Tags (optional)</label><input id="tags" value={tags} onChange={(event) => setTags(event.target.value)} placeholder="e.g. vegan, easy, gluten-free" aria-describedby="tags-hint" /><p id="tags-hint" className="field-hint">Separate tags with commas.</p></div>
+      <div className="field"><label htmlFor="image">Image URL</label><input id="image" type="url" value={image} onChange={(event) => setImage(event.target.value)} placeholder="https://example.com/recipe.jpg" required {...accessibility('image')} />{fieldError('image')}<p className="field-hint">Use a direct link to an image.</p>
+        {preview && <div className="recipe-photo-preview">
+          {failedImage === preview ? <p className="field-hint" role="status">This image couldn’t be loaded. Check the link or try another image URL.</p>
+            : <img className="detail-image" src={preview} alt="Recipe photo preview" onError={() => setFailedImage(preview)} />}
+          <button className="text-button" type="button" onClick={() => { setImage(''); setFailedImage(''); }}>Clear Image</button>
+        </div>}
+      </div>
       <div className="button-stack form-actions"><button className="button button-primary" type="submit">{busy ? 'Saving…' : submitLabel || (initial ? 'Save Changes' : 'Create Recipe')}</button>
         <Link className="button button-secondary" to="/dashboard" onClick={(event) => {
           if (busy || dirty) event.preventDefault();

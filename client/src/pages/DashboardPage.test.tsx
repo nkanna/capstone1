@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, expect, it, vi } from 'vitest';
@@ -16,6 +16,17 @@ function dashboard() {
   vi.spyOn(api, 'get').mockResolvedValue({ data: [exampleRecipe, { ...exampleRecipe, _id: 'other', ownerId: 'other-cook', title: 'Other Recipe' }] });
   render(<MemoryRouter><AuthProvider><DashboardPage /></AuthProvider></MemoryRouter>);
 }
+it('keeps the full-screen brand visible until recipes load and shows an error when loading fails', async () => {
+  logIn();
+  let reject!: (reason: unknown) => void;
+  vi.spyOn(api, 'get').mockImplementationOnce(() => new Promise((_resolve, fail) => { reject = fail; }));
+  render(<MemoryRouter><AuthProvider><DashboardPage /></AuthProvider></MemoryRouter>);
+  expect(screen.getByRole('status')).toHaveTextContent('Loading. Please wait.');
+  expect(screen.queryByRole('heading', { name: 'Your Recipes' })).not.toBeInTheDocument();
+  await act(async () => reject(new Error('Offline')));
+  expect(await screen.findByRole('alert')).toHaveTextContent('couldn’t load');
+  expect(screen.getByRole('button', { name: 'Try Again' })).toBeEnabled();
+});
 it('shows only owned recipes and requires confirmation before deleting', async () => {
   const remove = vi.spyOn(api, 'delete').mockResolvedValue({ data: { message: 'Deleted Recipe' } });
   dashboard();
@@ -23,11 +34,11 @@ it('shows only owned recipes and requires confirmation before deleting', async (
   expect(screen.queryByRole('heading', { name: 'Other Recipe' })).not.toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: 'Delete' }));
   expect(remove).not.toHaveBeenCalled();
-  await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' }));
+  await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Nevermind' }));
   expect(remove).not.toHaveBeenCalled();
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: 'Delete' }));
-  await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete Recipe' }));
+  await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Yes, Delete Recipe' }));
   expect(await screen.findByText('Recipe deleted successfully.')).toBeInTheDocument();
   expect(screen.queryByRole('heading', { name: 'Chickpea Stew' })).not.toBeInTheDocument();
   expect(remove).toHaveBeenCalledWith(`/api/recipes/${exampleRecipe._id}`);
@@ -37,7 +48,7 @@ it('keeps the recipe visible when deletion is forbidden', async () => {
   dashboard();
   await screen.findByRole('heading', { name: 'Chickpea Stew' });
   await userEvent.click(screen.getByRole('button', { name: 'Delete' }));
-  await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete Recipe' }));
+  await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Yes, Delete Recipe' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('Only the creator');
   expect(screen.getByRole('heading', { name: 'Chickpea Stew' })).toBeInTheDocument();
 });
@@ -46,7 +57,7 @@ it('removes a stale card when the backend reports it was already deleted', async
   dashboard();
   await screen.findByRole('heading', { name: 'Chickpea Stew' });
   await userEvent.click(screen.getByRole('button', { name: 'Delete' }));
-  await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete Recipe' }));
+  await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Yes, Delete Recipe' }));
   expect(await screen.findByText('This recipe was already removed.')).toBeInTheDocument();
   expect(screen.queryByRole('heading', { name: 'Chickpea Stew' })).not.toBeInTheDocument();
 });

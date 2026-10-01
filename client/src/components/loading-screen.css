@@ -1,0 +1,21 @@
+.loading-screen {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--cream);
+  color: var(--neutral-600);
+}
+.loading-brand .brand-logo { font-size: 40px; line-height: 54px; }
+.loading-brand .brand-icon-viewport { width: 48px; height: 48px; }
+.loading-brand .brand-icon-crop { transform: scale(1.7142857143); }
+.loading-caption { margin: 0; font-size: 18px; line-height: 25px; text-align: center; }
+@media (max-width: 600px) {
+  .loading-brand .brand-logo { font-size: 28px; line-height: 38px; }
+  .loading-brand .brand-icon-viewport { width: 36px; height: 36px; }
+  .loading-brand .brand-icon-crop { transform: scale(1.2857142857); }
+  .loading-caption { font-size: 16px; }
+}

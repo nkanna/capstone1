@@ -1,8 +1,13 @@
 const MODEL = 'gemini-3.6-flash';
 const DIETS = ['No preference', 'Vegetarian', 'Vegan', 'Gluten-free'];
+const { setTimeout: delay } = require('node:timers/promises');
+const retryableStatuses = new Set([500, 502, 503, 504]);
 
 class AiError extends Error {
-  constructor(message, status = 502) { super(message); this.name = 'AiError'; this.status = status; }
+  constructor(message, status = 502, upstreamStatus) {
+    super(message); this.name = 'AiError'; this.status = status;
+    if (Number.isInteger(upstreamStatus)) this.upstreamStatus = upstreamStatus;
+  }
 }
 
 // Decode SSE by lines: neither network chunks nor UTF-8 characters necessarily
@@ -63,23 +68,31 @@ function validateGeneratedRecipe(value) {
     tags: [...new Set(value.tags.map((tag) => tag.trim()).filter(Boolean))] };
 }
 
-function createGeminiService({ fetchImpl = globalThis.fetch, env = process.env } = {}) {
+function createGeminiService({ fetchImpl = globalThis.fetch, env = process.env,
+  waitImpl = (ms, signal) => delay(ms, undefined, { signal }) } = {}) {
   async function request(method, payload, signal) {
     const key = env.GEMINI_API_KEY?.trim();
     if (!key) throw new AiError('The AI service is temporarily unavailable. Please try again later.', 503);
     const model = env.GEMINI_MODEL?.trim() || MODEL;
     if (!/^[a-zA-Z0-9._-]+$/.test(model)) throw new AiError('The AI service is temporarily unavailable. Please try again later.', 503);
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:${method}${method === 'streamGenerateContent' ? '?alt=sse' : ''}`;
-    const response = await fetchImpl(url, { method: 'POST', signal,
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body: JSON.stringify(payload) });
-    if (!response.ok) {
+    // At most one retry, only for an upstream HTTP 5xx before reading any tokens.
+    // Do not retry authentication, quota, validation, or a partially delivered stream.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      signal?.throwIfAborted();
+      const response = await fetchImpl(url, { method: 'POST', signal,
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body: JSON.stringify(payload) });
+      if (response.ok) return response;
       await response.body?.cancel().catch(() => {});
-      if (response.status === 429) throw new AiError('Gemini’s request limit was reached. Please wait and try again.', 429);
-      if ([401, 403].includes(response.status)) throw new AiError('The AI service could not authenticate. Please try again later.');
-      if (response.status === 404) throw new AiError('The configured AI model is unavailable. Please try again later.');
-      throw new AiError('Gemini could not answer this request. Please try again.');
+      if (retryableStatuses.has(response.status) && attempt === 0) {
+        await waitImpl(800 + Math.floor(Math.random() * 200), signal);
+        continue;
+      }
+      if (response.status === 429) throw new AiError('Gemini’s request limit was reached. Please wait and try again.', 429, 429);
+      if ([401, 403].includes(response.status)) throw new AiError('The AI service could not authenticate. Please try again later.', 502, response.status);
+      if (response.status === 404) throw new AiError('The configured AI model is unavailable. Please try again later.', 502, 404);
+      throw new AiError('Gemini could not answer this request. Please try again.', 502, response.status);
     }
-    return response;
   }
   async function* stream(prompt, signal) {
     const response = await request('streamGenerateContent', {

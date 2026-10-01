@@ -34,6 +34,7 @@ it('keeps only three completed exchanges and retains them through navigation', a
   }
   expect(screen.queryByRole('heading', { name: 'Question one' })).not.toBeInTheDocument();
   expect(screen.getByRole('heading', { name: 'Question two' })).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'Main menu' }));
   await userEvent.click(screen.getByRole('link', { name: 'Browse Recipes' })); await userEvent.click(screen.getByRole('link', { name: 'Return to Assistant' }));
   expect(screen.getByText('Answer to Question four')).toBeInTheDocument(); expect(sessionStorage.length).toBe(0); expect(localStorage.length).toBe(0);
 });

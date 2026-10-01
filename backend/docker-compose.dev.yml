@@ -16,7 +16,7 @@ services:
     env_file:
       - .env
     environment:
-      - JWT_SECRET=my secret string
+      - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET in backend/.env}
       - MONGO_URL=mongodb://mongo:27017/deloitte
       - PORT=3000
     ports: ["3000:3000"]

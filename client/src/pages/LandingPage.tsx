@@ -1,10 +1,12 @@
-import { Link } from 'react-router';
+import { Link, useLocation } from 'react-router';
 import { BrandLogo } from '../components/BrandLogo';
 
 export function LandingPage() {
+  const location = useLocation();
   return (
     <main className="landing-page">
       <div className="landing-content">
+        {typeof location.state?.notice === 'string' && <p className="success-message landing-notice" role="status">{location.state.notice}</p>}
         <h1 className="landing-brand" aria-label="Spoonful"><BrandLogo /></h1>
         <p className="landing-subtitle">Recipe Manager</p>
         <div className="button-stack">

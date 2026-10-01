@@ -1,128 +1,116 @@
-# Spoonful final verification and demo
+# Spoonful submission and demo checklist
 
-## Current verified evidence
+## Verified results
 
-- [x] Backend and database operate locally in Docker.
-- [x] Frontend is deployed to the S3 website.
-- [x] Live AI Assistant output was seen filling progressively through the public API.
-- [x] Live Recipe Generator on S3 generated a draft after the computer restart.
-- [x] The generated recipe accepted an image URL, saved, opened correctly, and was found by a guest.
-- [x] The deployed logo icon was confirmed visually.
-- [x] E2E TypeScript check and all 27 browser tests passed on the Mac, including the new image-preview and save/discard/cancel flow.
-- [x] Frontend Docker Compose smoke check, including a live progressively rendered AI response.
-- [ ] Final desktop design comparison and corrections.
-- [ ] Refreshed deployed recipe-detail deep link and final submission screenshots.
-- [ ] Final README/status update and Git commit.
+- Backend and MongoDB run locally in Docker; the frontend Docker workflow was checked.
+- The built frontend is deployed to Amazon S3.
+- The deployed recipe detail page loads after refreshing its direct URL.
+- Live Gemini Assistant output was observed filling progressively. The live Recipe Generator produced an editable draft that was reviewed, given an image URL, saved and viewed publicly.
+- Desktop screenshots were compared with retrieved Figma frames and supplied exports: profile, browsing, recipe details, create/edit forms and confirmation dialogs. The supplied logo and profile artwork are in use. This is a structure/styling review, not a pixel-difference certification.
+- The developer reported the full 33-case Playwright suite working after the profile/loading/redirect fix. It covers 11 scenarios across desktop, tablet and mobile.
+- The latest pasted Mac transcript after the dialog-copy patch confirms 73 unit tests, E2E TypeScript checks and 12 targeted core/UX browser cases passing. Those 12 are part of the 33-case suite. The build and S3 upload succeeded.
 
-## 1. Frontend Docker check (completed)
+## Final repository tasks
 
-The developer confirmed the live AI Assistant response streamed progressively in the Docker frontend. Keep these commands for reproducing the check during grading or after a restart.
+- [ ] Confirm the accidental shell command was removed from `client/src/components/brand-logo.css`, and that the new production build has no `Unexpected ">"` CSS warning. Rebuild and re-sync to S3 if this has not been completed.
+- [ ] Keep useful final screenshots or a short demo recording.
+- [ ] Install these documents, review Git status, commit and push the final changes.
 
-Keep Docker Desktop and the backend running. In the terminal where `npm run dev` is running, press Ctrl+C to release port 5173. Then:
+The CSS warning cleanup has not yet been explicitly confirmed in the conversation. Once verified, check it off here and update the corresponding build/status text in README.md.
+
+## Install the documents
+
+Unzip this package into Downloads. Its folder is `spoonful-submission-final`. From the repository root:
+
+```sh
+cd ~/code/ga/capstone1/unit-1-capstone
+cp -n README.md README-course-original.md
+cp ~/Downloads/spoonful-submission-final/README-spoonful.md README.md
+cp ~/Downloads/spoonful-submission-final/DEMO-CHECKLIST.md DEMO-CHECKLIST.md
+```
+
+The first command preserves the course README if a backup does not already exist. If Finder adds a suffix to the extracted folder, adjust the two Downloads paths to its actual name and quote paths containing spaces.
+
+Review and save the final implementation and documents:
+
+```sh
+git status --short
+git add -u
+git add README.md README-course-original.md DEMO-CHECKLIST.md client/src client/e2e backend/controllers backend/routes backend/middleware backend/services backend/tests scripts
+git diff --cached --stat
+git commit -m "Complete Spoonful profile flows, desktop UI, and submission documentation"
+git push
+```
+
+Include any additional new implementation/configuration files shown by Git status if they belong to the project. Keep private environment files, credentials, node_modules, dist, playwright-report and test-results out of the commit. The public API URL is build configuration; private Gemini and AWS credentials are not frontend configuration.
+
+## Before the live demo
+
+Keep the Mac awake, Docker running and the ngrok process active. Use a network that reaches the tunnel. The Mac's Wi-Fi previously failed for ngrok while cellular connectivity worked. Confirm the current public tunnel URL matches the deployed frontend build.
+
+Backend after a restart:
+
+```sh
+cd ~/code/ga/capstone1/unit-1-capstone/backend
+docker compose -f docker-compose.dev.yml up --build -d
+```
+
+In a separate terminal:
+
+```sh
+ngrok http 3000
+```
+
+If the forwarding URL changes, update `client/.env.production`, rebuild and upload:
 
 ```sh
 cd ~/code/ga/capstone1/unit-1-capstone/client
-docker compose -f docker-compose.yml up --build -d
-docker compose -f docker-compose.yml ps
+npm run build && \
+aws s3 sync dist/ s3://nkanna-spoonful-capstone-20261001 \
+  --delete --profile spoonful --region us-east-1
 ```
 
-Open http://localhost:5173. Log in, confirm the saved recipe appears, and open it. Submit one AI question to confirm the frontend container can call the local API.
+## Suggested live demo (5–7 minutes)
 
-If the frontend fails to load, inspect its service logs:
+1. Open the S3 landing page. Browse as a guest, search by title/tag/ingredient and show a no-match result.
+2. Open a recipe and refresh its detail URL to demonstrate the S3 route fallback.
+3. Log in and show the creator dashboard and profile dropdown. Show Your Profile and its current-password requirement. Account deletion has an explicit confirmation; use a disposable account if demonstrating it.
+4. Edit an owned recipe. Change a field and click Cancel to show Save Changes, Continue without Saving and Cancel. Keep editing, demonstrate image preview/Clear Image, restore a valid URL and save.
+5. Show recipe deletion on a disposable recipe. Cancel first, then confirm and verify removal from browsing.
+6. Ask the AI Assistant a cooking question. Show the initial waiting state, growing response and last-three-exchange history. Explain that refreshing clears this client-side AI history.
+7. Generate a recipe draft, review it, add an image URL, explicitly save and open the public result.
+8. Show the latest Playwright report and identify which run it represents. Explain the 33-case suite and its three viewports; auth, recipe and profile flows use the real local backend, while AI responses are controlled for repeatable tests. A targeted run produces a report for that subset only.
+9. Explain React on S3 → Axios through ngrok → local Express/MongoDB. Express calls Gemini using the private backend key.
 
-```sh
-docker compose -f docker-compose.yml logs --tail=50 react-dev
-```
-
-This check is needed because the rubric explicitly requires both client and backend to run through Docker Compose. Do not mark it complete based only on passing npm/Vite tests.
-
-To return to npm development after the check, stop the frontend service and start Vite:
-
-```sh
-docker compose -f docker-compose.yml stop react-dev
-npm run dev
-```
-
-## 2. Finish the visual comparison
-
-Obtain an editable Figma copy for exact measurements/assets, or individual full-resolution desktop frame exports for a direct visual comparison. The existing overview exports compress several frames together.
-
-Compare:
-
-- Login/signup spacing, button sizes, labels, and typography.
-- Dashboard empty state, card arrangement, and Create Recipe/Browse Recipes placement.
-- Public recipe list's centered card stack, search input, dates, tags, and View Recipe links.
-- Recipe details: photo position, title, breadcrumbs, ingredients, instructions, and tags.
-- Create/edit forms and both confirmation dialogs.
-- The complete logo wordmark, in addition to the corrected icon.
-
-Keep the brief's explicit image-URL input requirement. Preserve the required AI Assistant navigation and the Recipe Generator stretch feature even though older reference screens omit them. Resolve whether the instructor assesses profile/password-reset flows before calling the visual requirement complete.
-
-## 3. Live demo sequence
-
-Keep the Mac awake, Docker running, and ngrok's terminal open. Use the working network connection; the Mac's Wi-Fi previously failed for ngrok, while the hotspot worked. Check the current public URL matches the frontend build.
-
-Suggested demonstration, approximately 5–7 minutes:
-
-1. Open the S3 landing page and identify the app's purpose.
-2. Browse as a guest. Search using a recipe title, then a tag or ingredient. Show a no-match result and restore the search.
-3. Open a recipe and refresh the browser at its detail URL. Confirm the app and recipe reload.
-4. Log in and show the creator dashboard. Open an owned recipe for editing. Change a field and choose Cancel to show save/discard/keep-editing choices. Demonstrate that Cancel preserves the draft.
-5. Show image preview and Clear Image. Restore a valid image URL and save a valid edit. Show the success feedback.
-6. Demonstrate recipe deletion with a disposable demo recipe: cancel the dialog first, then confirm deletion. Confirm it disappears from browsing.
-7. Open AI Assistant. Submit a question, show the initial waiting state and progressively growing response, and identify its three-exchange session history. Empty prompt, error, and abort behavior are also covered by automated tests.
-8. Open Recipe Generator. Generate a structured draft, review it, add an image URL, explicitly save it, and show the resulting recipe publicly.
-9. Show the Playwright report with 27 passed cases and explain that auth/recipe operations use the real backend while AI behavior is controlled for repeatable automated tests.
-10. Explain the deployment: React build on S3 → Axios requests through ngrok → local Express/MongoDB; Express alone calls Gemini with the private backend key.
-
-For a visible streamed answer, use:
+Assistant prompt:
 
 ```text
 Explain three practical vegetarian cooking techniques in about 400 words, with examples and clear steps.
 ```
 
-For Recipe Generator, use ingredients `chickpeas, spinach, canned tomatoes, onion, garlic, coconut milk, olive oil, cumin, curry powder`, diet Vegetarian, 30 minutes, and 2 servings.
+Generator ingredients: chickpeas, spinach, canned tomatoes, onion, garlic, coconut milk, olive oil, cumin and curry powder. Choose Vegetarian, 30 minutes and 2 servings.
 
-## 4. Capture evidence
+## Evidence to keep
 
-Save useful screenshots or a short recording in a local submission folder:
-
-- Deployed landing page and corrected logo.
-- Guest browse/search and full recipe.
-- Creator dashboard and an edit confirmation dialog.
-- AI Assistant during progressive rendering, then its history.
+- Deployed landing page, logo and profile navigation.
+- Guest search and a full recipe detail page.
+- Creator dashboard, profile and unsaved-changes dialog.
+- Assistant while streaming and its session history.
 - Generated draft and saved recipe.
-- Playwright HTML report: 27 passed, showing desktop/tablet/mobile coverage.
-- Frontend and backend Compose service status.
+- Test results showing the actual run and viewport coverage.
+- Frontend and backend Docker Compose service status.
 
-Use a demo account and keep credentials, environment files, and tokens out of screenshots. Test reports contain synthetic account data and request traces; review them before sharing externally.
+Use a demo account and keep passwords, tokens and private environment settings out of evidence.
 
-## 5. Prepare the repository README
+## Submission links and selected stretch goals
 
-The accompanying `README-spoonful.md` is a ready-to-review project README. It records the completed Docker check and honestly labels the remaining visual and evidence checks. After those checks are completed, update the checklist/status text with the verified result.
+Repository: https://github.com/nkanna/capstone1
 
-To install it while retaining the course README, unzip this package into Downloads and run:
+Deployed frontend: http://nkanna-spoonful-capstone-20261001.s3-website-us-east-1.amazonaws.com
 
-```sh
-cd ~/code/ga/capstone1/unit-1-capstone
-cp -n README.md README-course-original.md
-cp ~/Downloads/spoonful-submission/README-spoonful.md README.md
-cp ~/Downloads/spoonful-submission/DEMO-CHECKLIST.md DEMO-CHECKLIST.md
-```
+Selected stretch goals:
 
-Do not replace the honest pending status with a claim of pixel-perfect implementation until the comparison and corrections are finished.
+1. Second AI use case: Recipe Generator with a structured, editable draft and explicit save.
+2. Playwright E2E suite: 33 cases across desktop, tablet and mobile.
 
-## 6. Commit the final result
-
-From the repository root:
-
-```sh
-git status --short
-git add README.md README-course-original.md DEMO-CHECKLIST.md client/src client/e2e
-git commit -m "Document Spoonful deployment, verification, and Gold stretch goals"
-git push
-```
-
-The scoped add does not include private environment files or generated test reports. Include additional actual implementation changes explicitly if the later visual pass changes files outside these paths. Keep `dist/`, `node_modules/`, private environment files, `playwright-report/`, and `test-results/` ignored.
-
-The submission should provide the GitHub repository and S3 URL, identify both selected stretch goals, and explain that the public backend is available during the live demo while the local machine and tunnel are running. A final Gold decision belongs to the evaluator and depends on the remaining core checks as well as the two stretch goals.
+The frontend is deployed on S3. The backend is available through ngrok during the live demo while the local machine and Docker remain running. Forgot Password currently displays an informational notice because no email recovery service is configured. No GitHub Actions deployment is claimed. Final grading is determined by the evaluator.

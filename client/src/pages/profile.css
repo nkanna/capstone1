@@ -1,0 +1,10 @@
+.profile-page { max-width: 420px; }
+.profile-page h1 { margin-bottom: 24px; }
+.profile-page .form-actions { margin-top: 40px; }
+.profile-password-change { font-size: 14px; color: var(--green-300); }
+.profile-password-change summary { min-height: 32px; font-weight: 700; }
+.profile-password-change .field { margin-top: 12px; }
+.profile-delete { min-height: 56px; }
+.delete-account-dialog .field { text-align: left; }
+.delete-account-dialog { max-height: calc(100dvh - 40px); overflow-y: auto; }
+.landing-notice { margin-bottom: 24px; }

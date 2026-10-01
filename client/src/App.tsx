@@ -1,7 +1,10 @@
 import { BrowserRouter, Link, Route, Routes } from 'react-router';
 import '@fontsource/open-sans/400.css';
 import '@fontsource/open-sans/600.css';
+import '@fontsource/open-sans/700.css';
+import '@fontsource/open-sans/400-italic.css';
 import './index.css';
+import './desktop-design.css';
 import { AiProvider } from './ai/AiProvider';
 import { AiAssistantPage } from './pages/AiAssistantPage';
 import { RecipeGeneratorPage } from './pages/RecipeGeneratorPage';
@@ -9,6 +12,7 @@ import { AuthProvider } from './auth/AuthProvider';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AuthPage } from './pages/AuthPage';
 import { DashboardPage } from './pages/DashboardPage';
+import { ProfilePage } from './pages/ProfilePage';
 import { LandingPage } from './pages/LandingPage';
 import { RecipesPage } from './pages/RecipesPage';
 import { RecipeDetailPage } from './pages/RecipeDetailPage';
@@ -29,6 +33,7 @@ function App() {
           <Route path="/recipes/:id" element={<RecipeDetailPage />} />
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
             <Route path="/recipes/new" element={<CreateRecipePage />} />
             <Route path="/recipes/:id/edit" element={<EditRecipePage />} />
           </Route>

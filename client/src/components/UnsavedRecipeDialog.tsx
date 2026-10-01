@@ -12,7 +12,7 @@ export function UnsavedRecipeDialog({ onSave, onDiscard, onCancel }: {
   return <dialog ref={dialog} className="confirm-dialog" aria-labelledby="unsaved-title" aria-describedby="unsaved-description"
     onCancel={(event) => { event.preventDefault(); onCancel(); }}>
     <h2 id="unsaved-title">You have unsaved changes.</h2>
-    <p id="unsaved-description">Do you want to save your recipe before leaving?</p>
+    <p id="unsaved-description">Do you want to proceed without saving your changes?</p>
     <div className="button-stack">
       <button className="button button-primary" type="button" onClick={onSave}>Save Changes</button>
       <button className="button button-secondary" type="button" onClick={onDiscard}>Continue without Saving</button>

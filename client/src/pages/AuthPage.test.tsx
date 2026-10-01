@@ -1,16 +1,22 @@
-import { render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
-import { expect, it, vi } from 'vitest';
+import { beforeAll, expect, it, vi } from 'vitest';
 import { AuthProvider } from '../auth/AuthProvider';
 import { SESSION_KEY } from '../auth/session';
 import { api } from '../lib/api';
 import { AuthPage } from './AuthPage';
 
+beforeAll(() => {
+  Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value: function(this: HTMLDialogElement) { this.setAttribute('open', ''); } });
+  Object.defineProperty(HTMLDialogElement.prototype, 'close', { configurable: true, value: function(this: HTMLDialogElement) { this.removeAttribute('open'); } });
+});
+
 function renderAuth(mode: 'login' | 'signup') {
   render(<MemoryRouter initialEntries={[`/${mode}`]}><AuthProvider><Routes>
     <Route path={`/${mode}`} element={<AuthPage mode={mode} />} />
     <Route path="/dashboard" element={<h1>Private dashboard</h1>} />
+    <Route path="/signup" element={<h1>Signup destination</h1>} />
   </Routes></AuthProvider></MemoryRouter>);
 }
 
@@ -23,6 +29,52 @@ it('rejects invalid signup inputs without sending a request', async () => {
   expect(screen.getByText('Please enter a valid email address.')).toBeInTheDocument();
   expect(screen.getByText('Please add a password with at least 8 characters.')).toBeInTheDocument();
   expect(post).not.toHaveBeenCalled();
+});
+
+it('shows the full-screen brand while signup waits and restores fields after failure', async () => {
+  let reject!: (reason: unknown) => void;
+  vi.spyOn(api, 'post').mockImplementationOnce(() => new Promise((_resolve, fail) => { reject = fail; }));
+  renderAuth('signup');
+  await userEvent.type(screen.getByLabelText('Username'), 'cook@example.com');
+  await userEvent.type(screen.getByLabelText('Password'), 'long-password');
+  await userEvent.click(screen.getByRole('button', { name: 'Create Account' }));
+  expect(screen.getByRole('status')).toHaveTextContent('Loading. Please wait.');
+  expect(screen.getByRole('img', { name: 'Spoonful' })).toBeInTheDocument();
+  expect(screen.queryByLabelText('Username')).not.toBeInTheDocument();
+  await act(async () => reject({ isAxiosError: true, response: { status: 400 } }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('couldn’t create');
+  expect(screen.getByLabelText('Username')).toHaveValue('cook@example.com');
+  expect(screen.getByLabelText('Password')).toHaveValue('long-password');
+});
+
+it('opens recovery information without submitting credentials and preserves the login fields', async () => {
+  const post = vi.spyOn(api, 'post');
+  renderAuth('login');
+  await userEvent.type(screen.getByLabelText('Email'), 'cook@example.com');
+  await userEvent.type(screen.getByLabelText('Password'), 'long-password');
+  const trigger = screen.getByRole('button', { name: 'Forgot Password?' });
+  await userEvent.click(trigger);
+  const modal = screen.getByRole('dialog', { name: 'Password recovery' });
+  expect(modal).toHaveTextContent('Password recovery is currently unavailable.');
+  expect(post).not.toHaveBeenCalled();
+  await userEvent.click(within(modal).getByRole('button', { name: 'Back to Login' }));
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  expect(screen.getByLabelText('Email')).toHaveValue('cook@example.com');
+  expect(screen.getByLabelText('Password')).toHaveValue('long-password');
+  expect(trigger).toHaveFocus();
+});
+
+it('closes recovery information on dialog cancellation and lets users reach signup', async () => {
+  renderAuth('login');
+  const trigger = screen.getByRole('button', { name: 'Forgot Password?' });
+  await userEvent.click(trigger);
+  fireEvent(screen.getByRole('dialog', { name: 'Password recovery' }), new Event('cancel', { cancelable: true }));
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  expect(trigger).toHaveFocus();
+  await userEvent.click(trigger);
+  await userEvent.click(within(screen.getByRole('dialog')).getByRole('link', { name: 'Create an Account' }));
+  expect(screen.getByRole('heading', { name: 'Signup destination' })).toBeInTheDocument();
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 });
 
 it('posts login credentials, stores the token, and opens the dashboard', async () => {

@@ -15,7 +15,9 @@ function createAiHandlers({ service = createGeminiService(), timeoutMs = 120000 
       : error instanceof AiError ? error.message : 'The AI request failed. Please try again.';
     const status = work.timedOut() ? 504 : error instanceof AiError ? error.status : 502;
     // Log only safe diagnostics: no key, prompt, full upstream response, or request headers.
-    console.error('AI request failed:', { status, reason: work.timedOut() ? 'timeout' : error.name });
+    console.error('AI request failed:', { status, reason: work.timedOut() ? 'timeout' : error.name,
+      detail: error instanceof AiError ? error.message : 'Unexpected AI request failure',
+      upstreamStatus: error instanceof AiError ? error.upstreamStatus : undefined });
     if (res.headersSent) { res.write(`data: ${JSON.stringify({ type: 'error', message })}\n\n`); res.end(); }
     else res.status(status).json({ message });
   }
