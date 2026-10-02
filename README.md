@@ -120,7 +120,7 @@ Latest recorded validation on October 1, 2026:
 
 - The developer reported the complete **33-case Playwright suite** working after the profile/loading/redirect corrections. It covers 11 scenarios across desktop, tablet and mobile.
 - The final dialog wording patch was followed by a pasted Mac transcript showing **73 frontend unit tests across 17 files**, successful E2E TypeScript checks and **12 targeted browser cases passed** (core recipe/auth flows and editor UX). The most recent targeted run completed in 20.6 seconds. This 12-case run is a subset of the 33-case suite, not 12 additional cases.
-- The final production build completed and the Mac transcript shows an S3 sync. That build contains a CSS syntax warning from an accidentally pasted shell command; source cleanup and a clean rebuild remain pending before the final commit.
+- The final production build completed and the Mac transcript shows an S3 sync. The developer subsequently confirmed removal of the accidentally pasted shell command, a successful build without that warning, and redeployment to S3.
 - Live Gemini streaming and generation were checked separately from controlled AI fixtures. The developer saw the Assistant response filling gradually and generated, reviewed, supplied an image for and saved a recipe on the deployed app.
 - Deployed desktop screenshots were reviewed for Your Profile, account deletion, public browsing, recipe details, create/edit forms, and the unsaved/deletion dialogs. Recipe-dialog wording was then corrected to match the retrieved Figma text.
 - Frontend and backend Docker operation had previously been confirmed by the developer.
@@ -171,13 +171,7 @@ The desktop implementation uses Open Sans, the supplied Spoonful/profile SVG art
 
 Retrieved desktop frames from the accessible Figma copy and user-supplied exports were compared with deployed screenshots. The image remains a URL input as the brief requires. Description, ingredient quantity rows, sequential instructions and account reauthentication controls extend older static mockups to support the current data/API flows. Account deletion explicitly includes the creator’s recipes. Long dynamic titles and tags wrap. These screenshot comparisons establish the checked structure and styling; they do not constitute a same-viewport pixel-difference certification.
 
-Design copy: https://www.figma.com/design/w4yhfzJs6bUT7VO6P7ORhg/Spoonful--Copy-?node-id=96-4773
-
-## Remaining submission checks
-
-- [ ] Remove the accidentally pasted shell command identified by the latest CSS build warning; confirm a clean production build and re-sync to S3.
-- [x] Refresh a deployed recipe-detail URL and confirm that the app and recipe load directly. The developer confirmed this on October 1, 2026.
-- [ ] Capture final demo evidence and commit/push the implementation and documentation.
+Figma design reference: https://www.figma.com/design/w4yhfzJs6bUT7VO6P7ORhg/Spoonful--Copy-?node-id=96-4773
 
 ## Known limits
 
